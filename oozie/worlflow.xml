@@ -1,0 +1,103 @@
+<workflow-app xmlns="uri:oozie:workflow:0.5" name="${base_app_name}_wf_${env}">
+    <global>
+        <job-tracker>${jobTracker}</job-tracker>
+        <name-node>${nameNode}</name-node>
+        <configuration>
+            <property>
+                <name>oozie.action.external.stats.write</name>
+                <value>true</value>
+            </property>
+            <property>
+                <name>oozie.launcher.mapreduce.user.classpath.first</name>
+                <value>true</value>
+            </property>
+            <property>
+                <name>mapreduce.job.user.classpath.first</name>
+                <value>true</value>
+            </property>
+<!--            <property>-->
+<!--                <name>yamas.url</name>-->
+<!--                <value>${digital_twin_ran_inventory_reference_yamas_url}?namespace=${digital_twin_ran_inventory_reference_yamas_namespace}</value>-->
+<!--            </property>-->
+<!--            <property>-->
+<!--                <name>yamas.cluster</name>-->
+<!--                <value>${env}</value>-->
+<!--            </property>-->
+            <property>
+                <name>oozie.launcher.mapreduce.job.acl-view-job</name>
+                <value>*</value>
+            </property>
+            <property>
+                <name>mapreduce.job.acl-view-job</name>
+                <value>*</value>
+            </property>
+            <property>
+                <name>oozie.action.sharelib.for.hive</name>
+                <value>hcat_current,hive_current</value>
+            </property>
+        </configuration>
+    </global>
+    <start to="spark-node"/>
+
+    <action name="spark-node" >
+        <shell xmlns="uri:oozie:shell-action:1.0">
+            <resource-manager>${jobTracker}</resource-manager>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+            <exec>gcloud</exec>
+            <argument>dataproc</argument>
+            <argument>jobs</argument>
+            <argument>submit</argument>
+            <argument>pyspark</argument>
+            <argument>--cluster=${ephemeral_cluster_name}</argument>
+            <argument>${digital_twin_ran_inventory_reference_cellsite_jobRootDirectory}/python/cellsite_main.py</argument>
+            <argument>--py-files=${digital_twin_ran_inventory_reference_cellsite_jobRootDirectory}/python/common_functions.py</argument>
+            <argument>--region=${GCP_REGION}</argument>
+            <argument>--properties=${digital_twin_ran_inventory_reference_cellsite_spark_opts}</argument>
+            <argument>--jars=${spark_external_jars}/${spark_avro_jar}</argument>
+            <argument>--</argument>
+            <argument>base_app_name=${base_app_name}</argument><argument>env=${env}</argument><argument>aidpe_core_dataset_root=${aidpe_digital_twin_ran_inventory_reference_core_dataset_root}</argument><argument>aidpe_quarantine_root=${aidpe_digital_twin_ran_inventory_reference_quarantine_root}</argument><argument>enodeb_site_map_src=${digital_twin_ran_inventory_reference_cellsite_enodeb_site_map_dataset_name}</argument><argument>cell_site_twin_src=${digital_twin_ran_inventory_reference_cellsite_twin_dataset_name}</argument><argument>enodeb_site_map_table=dim_inventory_enodeb_site_map_norm_v0</argument><argument>cell_site_twin_table=dim_inventory_cell_sites_norm_v0</argument><argument>hive_db=${digital_twin_ran_inventory_reference_hive_db}</argument><argument>vzn_ndl_vpi_core_tbls_hive_db=${digital_twin_ran_inventory_reference_vzn_ndl_vpi_core_tbls_hive_db}</argument><argument>vzn_ndl_fuze_core_tbls_hive_db=${digital_twin_ran_inventory_reference_vzn_ndl_fuze_core_tbls_hive_db}</argument><argument>vzn_ndl_granite_core_tbls_hive_db=${digital_twin_ran_inventory_reference_vzn_ndl_granite_core_tbls_hive_db}</argument><argument>vendor_xref=${digital_twin_ran_inventory_reference_vendor_xref}</argument><argument>vzwn_nsdl_ran_core_tbls_hive_db=${digital_twin_ran_inventory_reference_vzwn_nsdl_ran_core_tbls_hive_db}</argument><argument>onair_site_daily_table=onairsite_daily_raw_v7</argument><argument>site_structure_table=site_structure_raw_v1</argument><argument>circuit_info_raw=circuit_info_raw_v1</argument><argument>site_info_raw=site_info_raw_v1</argument><argument>radio_bbu_antenna_assignment_table=dim_inventory_radio_bbu_antenna_assignment_norm_v0</argument><argument>temp_dir=${digital_twin_ran_inventory_reference_aidpe_tmp_dataset}/debug/</argument><argument>debug_enabled=${digital_twin_ran_inventory_reference_debug_enabled}</argument><argument>technology_type='4G','4G LTE','5G NW','5G UWB'</argument><argument>run_date=${run_date}</argument>
+<!--            <argument>yamas_url=${digital_twin_ran_inventory_reference_yamas_url}</argument>-->
+<!--            <argument>yamas_namespace=${digital_twin_ran_inventory_reference_yamas_namespace}</argument>-->
+            <argument>threshold_days=2</argument><argument>aidpe_core_dataset_daily_root=${aidpe_digital_twin_ran_inventory_reference_core_dataset_daily_root}</argument><argument>bootstrap_enabled_cell_site=False</argument><argument>reconciliation_days_cell_site=7</argument><argument>bootstrap_enabled_enodeb_site_map=False</argument><argument>reconciliation_days_enodeb_site_map=7</argument><capture-output/>
+        </shell>
+        <ok to="add_partition"/>
+        <error to="fail"/>
+    </action>
+
+    <action name="add_partition" retry-max="3" retry-interval="1" >
+        <shell xmlns="uri:oozie:shell-action:1.0">
+            <resource-manager>${resourceManager}</resource-manager>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+            <exec>gcloud</exec>
+            <argument>dataproc</argument>
+            <argument>jobs</argument>
+            <argument>submit</argument>
+            <argument>hive</argument>
+            <argument>--cluster=${ephemeral_cluster_name}</argument>
+            <argument>--region=${GCP_REGION}</argument>
+            <argument>--file=${digital_twin_ran_inventory_reference_cellsite_jobRootDirectory}/hive/add_partitions.hql</argument>
+            <argument>--params="HIVE_DB=${digital_twin_ran_inventory_reference_hive_db},HIVE_DB_QUAR=${digital_twin_ran_inventory_reference_hive_db_quar},TRANS_DT=${nominal_time}"</argument>
+
+            <capture-output/>
+        </shell>
+        <ok to="end"/>
+        <error to="fail"/>
+    </action>
+
+    <kill name="fail">
+        <message>Action failed, error message [${wf:errorMessage(wf:lastErrorNode())}]</message>
+    </kill>
+    <end name="end"/>
+</workflow-app>

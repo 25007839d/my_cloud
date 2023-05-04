@@ -1,0 +1,372 @@
+---
+workflow-app:
+  "-xmlns": uri:oozie:workflow:0.5
+  "-name": ${base_app_name}_${marketName}_wf_${env}
+  global:
+    job-tracker: ${jobTracker}
+    name-node: ${nameNode}
+    configuration:
+      property:
+      -
+        name: oozie.action.external.stats.write
+        value: true
+      -
+        name: oozie.action.sharelib.for.hive
+        value: hcat_current,hive_current
+      -
+        name: oozie.action.sharelib.for.hive
+        value: hcat_current,hive_current
+      -
+        name: oozie.launcher.mapreduce.job.acl-view-job
+        value: *
+      -
+        name: mapreduce.job.acl-view-job
+        value: *
+  start:
+    "-to": get_trans_dt
+  action:
+  -
+    "-name": get_trans_dt
+    "-retry-max": 3
+    "-retry-interval": 1
+    shell:
+      "-xmlns": uri:oozie:shell-action:0.3
+      exec: get_trans_dt.py
+      argument:
+      - ${dataset_lof_nokia_parser_output}/outputFile
+      - ${marketName}
+      - ${trans_dt}
+      - ${env}
+      - ${pipeline_vendor_name}
+      file: ${digital_twin_ran_inventory_jobRootDirectory}/scripts/get_trans_dt.py#get_trans_dt.py
+      capture-output:
+    ok:
+      "-to": parallel-spark
+    error:
+      "-to": fail
+  -
+    "-name": spark-node-4G
+    "-retry-max": 3
+    "-retry-interval": 1
+    shell:
+      "-xmlns": uri:oozie:shell-action:1.0
+      resource-manager: ${jobTracker}
+      name-node: ${nameNode}
+      configuration:
+        property:
+          name: mapred.job.queue.name
+          value: ${queueName}
+      exec: gcloud
+      argument:
+      - dataproc
+      - jobs
+      - submit
+      - pyspark
+      - --cluster-labels=workloadtype-critical1=batch-dtwin-crit-1
+      - --labels=vendor=nokia,technology=4g_lte
+      - ${digital_twin_ran_inventory_jobRootDirectory}/python/nokia_4G.py
+      - --py-files=${digital_twin_ran_inventory_jobRootDirectory}/python/common_functions.py,${digital_twin_ran_inventory_jobRootDirectory}/python/support_functions.py
+      - --properties=spark.driver.memory=48g,spark.submit.deployMode=cluster,spark.executor.cores=3,spark.executor.memory=32g,spark.shuffle.service.enabled=true,spark.dynamicAllocation.executorIdleTimeout=60,spark.dynamicAllocation.minExecutors=2,spark.dynamicAllocation.initialExecutors=2,spark.dynamicAllocation.maxExecutors=1000,spark.serializer=org.apache.spark.serializer.KryoSerializer,spark.sql.broadcastTimeout=3600,spark.sql.adaptive.enabled=false
+      - --jars=${spark_external_jars}/${spark_avro_jar},${spark_external_jars}/${spark_xml_jar}
+      - --region=${GCP_REGION}
+      - --
+      - base_app_name=${base_app_name}
+      - env=${env}
+      - core_dataset=${digital_twin_ran_inventory_aidpe_core_dataset}
+      - quarantine=${digital_twin_ran_inventory_aidpe_quarantine}
+      - VzwRanDimInventoryRadioDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioDevicesNorm_dataset_name}
+      - VzwRanDimInventoryBbuDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryBbuDevicesNorm_dataset_name}
+      - VzwRanDimInventoryRadioCellDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioCellDevicesNorm_dataset_name}
+      - VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_dataset_name}
+      - VzwRanDimInventoryEnodB_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryEnodB_dataset_name}
+      - VzwRanDimInventoryRadioDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioDevicesNorm_table_name}
+      - VzwRanDimInventoryBbuDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryBbuDevicesNorm_table_name}
+      - VzwRanDimInventoryRadioCellDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioCellDevicesNorm_table_name}
+      - VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_table_name}
+      - VzwRanDimInventoryEnodB_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryEnodB_table_name}
+      - vendor=${pipeline_vendor_name}
+      - technology=${pipeline_4g_lte_technology}
+      - trans_dt=${wf:actionData('get_trans_dt')['trans_dt']}
+      - src=${marketName}
+      - run_date=${run_date}
+      - log_level=${digital_twin_ran_inventory_log_file}
+      - app_version=${digital_twin_ran_inventory_app_version}
+      - output_dir=${digital_twin_ran_inventory_aidpe_tmp_dataset}/ran_dt/debug/nokia
+      - lof_output_file_location=${dataset_lof_nokia_parser_output}/outputFile
+      - marketName=${marketName}
+      - onair_table_name=${digital_twin_ran_inventory_kafka_switchx_nokia_onair_table_name}
+      - dataset_market_reference=${digital_twin_ran_inventory_kafka_switchx_nokia_market_dataset_dir}
+      - dataset_switchx_nokia_reference=${dataset_switchx_nokia_reference}
+      - core_dataset_daily=${digital_twin_ran_inventory_aidpe_core_dataset_daily}
+      - reconciliation_days_BbuDevicesNorm=7
+      - reconciliation_days_RadioDevicesNorm=7
+      - reconciliation_days_RadioCellDevicesNorm=7
+      - reconciliation_days_RadioBbuAntennaAssignmentNorm=7
+      - reconciliation_days_EnodBNorm=7
+      - bootstrap_enabled_BbuDevicesNorm=False
+      - bootstrap_enabled_RadioDevicesNorm=False
+      - bootstrap_enabled_RadioCellDevicesNorm=False
+      - bootstrap_enabled_RadioBbuAntennaAssignmentNorm=False
+      - bootstrap_enabled_EnodBNorm=False
+      - market_exists=${wf:actionData('get_trans_dt')['market_exists']}
+      - file_path=${wf:actionData('get_trans_dt')['file_path']}
+      - dataset_antenna_reference=${dataset_antenna_reference}
+      capture-output:
+    ok:
+      "-to": add_partition_4G_LTE
+    error:
+      "-to": joining-spark
+  -
+    "-name": spark-node-5GUWB
+    "-retry-max": 3
+    "-retry-interval": 1
+    shell:
+      "-xmlns": uri:oozie:shell-action:1.0
+      resource-manager: ${jobTracker}
+      name-node: ${nameNode}
+      configuration:
+        property:
+          name: mapred.job.queue.name
+          value: ${queueName}
+      exec: gcloud
+      argument:
+      - dataproc
+      - jobs
+      - submit
+      - pyspark
+      - --cluster-labels=workloadtype-critical1=batch-dtwin-crit-1
+      - --labels=vendor=nokia,technology=5g_uwb
+      - ${digital_twin_ran_inventory_jobRootDirectory}/python/nokia_5GUWB.py
+      - --py-files=${digital_twin_ran_inventory_jobRootDirectory}/python/common_functions.py,${digital_twin_ran_inventory_jobRootDirectory}/python/support_functions.py
+      - --properties=spark.driver.memory=32g,spark.submit.deployMode=cluster,spark.executor.cores=3,spark.executor.memory=32g,spark.shuffle.service.enabled=true,spark.dynamicAllocation.executorIdleTimeout=60,spark.dynamicAllocation.minExecutors=2,spark.dynamicAllocation.initialExecutors=2,spark.dynamicAllocation.maxExecutors=1000,spark.serializer=org.apache.spark.serializer.KryoSerializer,spark.sql.broadcastTimeout=3600,spark.sql.adaptive.enabled=false
+      - --jars=${spark_external_jars}/${spark_avro_jar},${spark_external_jars}/${spark_xml_jar}
+      - --region=${GCP_REGION}
+      - --
+      - base_app_name=${base_app_name}
+      - env=${env}
+      - core_dataset=${digital_twin_ran_inventory_aidpe_core_dataset}
+      - quarantine=${digital_twin_ran_inventory_aidpe_quarantine}
+      - VzwRanDimInventoryRadioDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioDevicesNorm_dataset_name}
+      - VzwRanDimInventoryBbuDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryBbuDevicesNorm_dataset_name}
+      - VzwRanDimInventoryRadioCellDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioCellDevicesNorm_dataset_name}
+      - VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_dataset_name}
+      - VzwRanDimInventoryEnodB_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryEnodB_dataset_name}
+      - VzwRanDimInventoryRadioDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioDevicesNorm_table_name}
+      - VzwRanDimInventoryBbuDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryBbuDevicesNorm_table_name}
+      - VzwRanDimInventoryRadioCellDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioCellDevicesNorm_table_name}
+      - VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_table_name}
+      - VzwRanDimInventoryEnodB_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryEnodB_table_name}
+      - vendor=${pipeline_vendor_name}
+      - technology=${pipeline_5g_uwb_technology}
+      - trans_dt=${wf:actionData('get_trans_dt')['trans_dt']}
+      - src=${marketName}
+      - run_date=${run_date}
+      - log_level=${digital_twin_ran_inventory_log_file}
+      - app_version=${digital_twin_ran_inventory_app_version}
+      - output_dir=${digital_twin_ran_inventory_aidpe_tmp_dataset}/ran_dt/debug/nokia
+      - lof_output_file_location=${dataset_lof_nokia_parser_output}/outputFile
+      - marketName=${marketName}
+      - onair_table_name=${digital_twin_ran_inventory_kafka_switchx_nokia_onair_table_name}
+      - dataset_market_reference=${digital_twin_ran_inventory_kafka_switchx_nokia_market_dataset_dir}
+      - dataset_switchx_nokia_reference=${dataset_switchx_nokia_reference}
+      - core_dataset_daily=${digital_twin_ran_inventory_aidpe_core_dataset_daily}
+      - reconciliation_days_BbuDevicesNorm=7
+      - reconciliation_days_RadioDevicesNorm=7
+      - reconciliation_days_RadioCellDevicesNorm=7
+      - reconciliation_days_RadioBbuAntennaAssignmentNorm=7
+      - reconciliation_days_EnodBNorm=7
+      - bootstrap_enabled_BbuDevicesNorm=False
+      - bootstrap_enabled_RadioDevicesNorm=False
+      - bootstrap_enabled_RadioCellDevicesNorm=False
+      - bootstrap_enabled_RadioBbuAntennaAssignmentNorm=False
+      - bootstrap_enabled_EnodBNorm=False
+      - market_exists=${wf:actionData('get_trans_dt')['market_exists']}
+      - file_path=${wf:actionData('get_trans_dt')['file_path']}
+      capture-output:
+    ok:
+      "-to": add_partition_5G_UWB
+    error:
+      "-to": joining-spark
+  -
+    "-name": spark-node-5GNW
+    "-retry-max": 3
+    "-retry-interval": 1
+    shell:
+      "-xmlns": uri:oozie:shell-action:1.0
+      resource-manager: ${jobTracker}
+      name-node: ${nameNode}
+      configuration:
+        property:
+          name: mapred.job.queue.name
+          value: ${queueName}
+      exec: gcloud
+      argument:
+      - dataproc
+      - jobs
+      - submit
+      - pyspark
+      - --cluster-labels=workloadtype-critical1=batch-dtwin-crit-1
+      - --labels=vendor=nokia,technology=5g_nw
+      - ${digital_twin_ran_inventory_jobRootDirectory}/python/nokia_5GNW.py
+      - --py-files=${digital_twin_ran_inventory_jobRootDirectory}/python/common_functions.py,${digital_twin_ran_inventory_jobRootDirectory}/python/support_functions.py
+      - --properties=spark.driver.memory=32g,spark.submit.deployMode=cluster,spark.executor.cores=3,spark.executor.memory=32g,spark.shuffle.service.enabled=true,spark.dynamicAllocation.executorIdleTimeout=60,spark.dynamicAllocation.minExecutors=2,spark.dynamicAllocation.initialExecutors=2,spark.dynamicAllocation.maxExecutors=1000,spark.serializer=org.apache.spark.serializer.KryoSerializer,spark.sql.broadcastTimeout=3600,spark.sql.adaptive.enabled=false
+      - --jars=${spark_external_jars}/${spark_avro_jar},${spark_external_jars}/${spark_xml_jar}
+      - --region=${GCP_REGION}
+      - --
+      - base_app_name=${base_app_name}
+      - env=${env}
+      - core_dataset=${digital_twin_ran_inventory_aidpe_core_dataset}
+      - quarantine=${digital_twin_ran_inventory_aidpe_quarantine}
+      - VzwRanDimInventoryRadioDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioDevicesNorm_dataset_name}
+      - VzwRanDimInventoryBbuDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryBbuDevicesNorm_dataset_name}
+      - VzwRanDimInventoryRadioCellDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioCellDevicesNorm_dataset_name}
+      - VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_dataset_name}
+      - VzwRanDimInventoryEnodB_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryEnodB_dataset_name}
+      - VzwRanDimInventoryRadioDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioDevicesNorm_table_name}
+      - VzwRanDimInventoryBbuDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryBbuDevicesNorm_table_name}
+      - VzwRanDimInventoryRadioCellDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioCellDevicesNorm_table_name}
+      - VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_table_name}
+      - VzwRanDimInventoryEnodB_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryEnodB_table_name}
+      - vendor=${pipeline_vendor_name}
+      - technology=${pipeline_5g_nw_technology}
+      - trans_dt=${wf:actionData('get_trans_dt')['trans_dt']}
+      - src=${marketName}
+      - run_date=${run_date}
+      - log_level=${digital_twin_ran_inventory_log_file}
+      - app_version=${digital_twin_ran_inventory_app_version}
+      - output_dir=${digital_twin_ran_inventory_aidpe_tmp_dataset}/ran_dt/debug/nokia
+      - lof_output_file_location=${dataset_lof_nokia_parser_output}/outputFile
+      - marketName=${marketName}
+      - onair_table_name=${digital_twin_ran_inventory_kafka_switchx_nokia_onair_table_name}
+      - dataset_market_reference=${digital_twin_ran_inventory_kafka_switchx_nokia_market_dataset_dir}
+      - dataset_switchx_nokia_reference=${dataset_switchx_nokia_reference}
+      - core_dataset_daily=${digital_twin_ran_inventory_aidpe_core_dataset_daily}
+      - reconciliation_days_BbuDevicesNorm=7
+      - reconciliation_days_RadioDevicesNorm=7
+      - reconciliation_days_RadioCellDevicesNorm=7
+      - reconciliation_days_RadioBbuAntennaAssignmentNorm=7
+      - reconciliation_days_EnodBNorm=7
+      - bootstrap_enabled_BbuDevicesNorm=False
+      - bootstrap_enabled_RadioDevicesNorm=False
+      - bootstrap_enabled_RadioCellDevicesNorm=False
+      - bootstrap_enabled_RadioBbuAntennaAssignmentNorm=False
+      - bootstrap_enabled_EnodBNorm=False
+      - market_exists=${wf:actionData('get_trans_dt')['market_exists']}
+      - file_path=${wf:actionData('get_trans_dt')['file_path']}
+      - dataset_antenna_reference=${dataset_antenna_reference}
+      capture-output:
+    ok:
+      "-to": add_partition_5G_NW
+    error:
+      "-to": joining-spark
+  -
+    "-name": add_partition_4G_LTE
+    "-retry-max": 3
+    "-retry-interval": 1
+    shell:
+      "-xmlns": uri:oozie:shell-action:1.0
+      resource-manager: ${resourceManager}
+      name-node: ${nameNode}
+      configuration:
+        property:
+          name: mapred.job.queue.name
+          value: ${queueName}
+      exec: gcloud
+      argument:
+      - dataproc
+      - jobs
+      - submit
+      - hive
+      - --cluster-labels=workloadtype-critical1=batch-dtwin-crit-1
+      - --labels=vendor=nokia,technology=4g_lte
+      - --region=${GCP_REGION}
+      - --file=${digital_twin_ran_inventory_jobRootDirectory}/hive/add_partitions.hql
+      - --params=\"HIVE_DB=${digital_twin_ran_inventory_hive_db},HIVE_DB_QUAR=${digital_twin_ran_inventory_hive_db_quar},TRANS_DT=${wf:actionData('get_trans_dt')['trans_dt']},VENDOR=${pipeline_vendor_name},MARKET=${marketName},TECHNOLOGY=${pipeline_4g_lte_technology},DATESTAMP=${run_date}\"
+      capture-output:
+    ok:
+      "-to": joining-spark
+    error:
+      "-to": joining-spark
+  -
+    "-name": add_partition_5G_NW
+    "-retry-max": 3
+    "-retry-interval": 1
+    shell:
+      "-xmlns": uri:oozie:shell-action:1.0
+      resource-manager: ${resourceManager}
+      name-node: ${nameNode}
+      configuration:
+        property:
+          name: mapred.job.queue.name
+          value: ${queueName}
+      exec: gcloud
+      argument:
+      - dataproc
+      - jobs
+      - submit
+      - hive
+      - --cluster-labels=workloadtype-critical1=batch-dtwin-crit-1
+      - --labels=vendor=nokia,technology=5g_nw
+      - --region=${GCP_REGION}
+      - --file=${digital_twin_ran_inventory_jobRootDirectory}/hive/add_partitions.hql
+      - --params=\"HIVE_DB=${digital_twin_ran_inventory_hive_db},HIVE_DB_QUAR=${digital_twin_ran_inventory_hive_db_quar},TRANS_DT=${wf:actionData('get_trans_dt')['trans_dt']},VENDOR=${pipeline_vendor_name},MARKET=${marketName},TECHNOLOGY=${pipeline_5g_nw_technology},DATESTAMP=${run_date}\"
+      capture-output:
+    ok:
+      "-to": joining-spark
+    error:
+      "-to": joining-spark
+  -
+    "-name": add_partition_5G_UWB
+    "-retry-max": 3
+    "-retry-interval": 1
+    shell:
+      "-xmlns": uri:oozie:shell-action:1.0
+      resource-manager: ${resourceManager}
+      name-node: ${nameNode}
+      configuration:
+        property:
+          name: mapred.job.queue.name
+          value: ${queueName}
+      exec: gcloud
+      argument:
+      - dataproc
+      - jobs
+      - submit
+      - hive
+      - --cluster-labels=workloadtype-critical1=batch-dtwin-crit-1
+      - --labels=vendor=nokia,technology=5g_uwb
+      - --region=${GCP_REGION}
+      - --file=${digital_twin_ran_inventory_jobRootDirectory}/hive/add_partitions.hql
+      - --params=\"HIVE_DB=${digital_twin_ran_inventory_hive_db},HIVE_DB_QUAR=${digital_twin_ran_inventory_hive_db_quar},TRANS_DT=${wf:actionData('get_trans_dt')['trans_dt']},VENDOR=${pipeline_vendor_name},MARKET=${marketName},TECHNOLOGY=${pipeline_5g_uwb_technology},DATESTAMP=${run_date}\"
+      capture-output:
+    ok:
+      "-to": joining-spark
+    error:
+      "-to": joining-spark
+  fork:
+    "-name": parallel-spark
+    path:
+    -
+      "-start": spark-node-4G
+    -
+      "-start": spark-node-5GUWB
+    -
+      "-start": spark-node-5GNW
+  join:
+    "-name": joining-spark
+    "-to": maybeFail
+  decision:
+    "-name": maybeFail
+    switch:
+      case:
+        "-to": end
+        "#text": 
+            ${wf:lastErrorNode() eq null}
+         
+      default:
+        "-to": fail
+  kill:
+    "-name": fail
+    message: Action failed, error message [${wf:errorMessage(wf:lastErrorNode())}]
+  end:
+    "-name": end

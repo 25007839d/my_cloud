@@ -1,0 +1,357 @@
+<workflow-app xmlns="uri:oozie:workflow:0.5" name="${base_app_name}_${marketName}_wf_${env}">
+    <global>
+        <job-tracker>${jobTracker}</job-tracker>
+        <name-node>${nameNode}</name-node>
+        <configuration>
+           <property>
+                <name>oozie.action.external.stats.write</name>
+                <value>true</value>
+           </property>
+           <property>
+                <name>oozie.action.sharelib.for.hive</name>
+                <value>hcat_current,hive_current</value>
+            </property>
+            <property>
+                <name>oozie.action.sharelib.for.hive</name>
+                <value>hcat_current,hive_current</value>
+            </property>
+            <property>
+                <name>oozie.launcher.mapreduce.job.acl-view-job</name>
+                <value>*</value>
+            </property>
+            <property>
+                <name>mapreduce.job.acl-view-job</name>
+                <value>*</value>
+            </property>
+        </configuration>
+    </global>
+    <start to="get_trans_dt"/>
+
+    <action name="get_trans_dt" retry-max="3" retry-interval="1">
+        <shell xmlns="uri:oozie:shell-action:0.3">
+            <exec>get_trans_dt.py</exec>
+            <argument>${dataset_lof_nokia_parser_output}/outputFile</argument>
+            <argument>${marketName}</argument>
+            <argument>${trans_dt}</argument>
+            <argument>${env}</argument>
+            <argument>${pipeline_vendor_name}</argument>
+
+            <file>${digital_twin_ran_inventory_jobRootDirectory}/scripts/get_trans_dt.py#get_trans_dt.py</file>
+            <capture-output/>
+        </shell>
+        <ok to="parallel-spark"/>
+        <error to="fail"/>
+    </action>
+
+
+    <fork name="parallel-spark">
+      <path start="spark-node-4G"/>
+      <path start="spark-node-5GUWB"/>
+      <path start="spark-node-5GNW"/>
+    </fork>
+
+    <action name="spark-node-4G" retry-max="3" retry-interval="1" >
+        <shell xmlns="uri:oozie:shell-action:1.0">
+            <resource-manager>${jobTracker}</resource-manager>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+            <exec>gcloud</exec>
+            <argument>dataproc</argument>
+            <argument>jobs</argument>
+            <argument>submit</argument>
+            <argument>pyspark</argument>
+            <argument>--cluster-labels=workloadtype-critical1=batch-dtwin-crit-1</argument>
+            <argument>--labels=vendor=nokia,technology=4g_lte</argument>
+            <argument>${digital_twin_ran_inventory_jobRootDirectory}/python/nokia_4G.py</argument>
+            <argument>--py-files=${digital_twin_ran_inventory_jobRootDirectory}/python/common_functions.py,${digital_twin_ran_inventory_jobRootDirectory}/python/support_functions.py</argument>
+            <argument>--properties=spark.driver.memory=48g,spark.submit.deployMode=cluster,spark.executor.cores=3,spark.executor.memory=32g,spark.shuffle.service.enabled=true,spark.dynamicAllocation.executorIdleTimeout=60,spark.dynamicAllocation.minExecutors=2,spark.dynamicAllocation.initialExecutors=2,spark.dynamicAllocation.maxExecutors=1000,spark.serializer=org.apache.spark.serializer.KryoSerializer,spark.sql.broadcastTimeout=3600,spark.sql.adaptive.enabled=false</argument>
+            <argument>--jars=${spark_external_jars}/${spark_avro_jar},${spark_external_jars}/${spark_xml_jar}</argument>
+            <argument>--region=${GCP_REGION}</argument>
+            <argument>--</argument>
+            <argument>base_app_name=${base_app_name}</argument>
+            <argument>env=${env}</argument>
+            <argument>core_dataset=${digital_twin_ran_inventory_aidpe_core_dataset}</argument>
+            <argument>quarantine=${digital_twin_ran_inventory_aidpe_quarantine}</argument>
+            <argument>VzwRanDimInventoryRadioDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioDevicesNorm_dataset_name}</argument>
+            <argument>VzwRanDimInventoryBbuDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryBbuDevicesNorm_dataset_name}</argument>
+            <argument>VzwRanDimInventoryRadioCellDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioCellDevicesNorm_dataset_name}</argument>
+            <argument>VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_dataset_name}</argument>
+            <argument>VzwRanDimInventoryEnodB_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryEnodB_dataset_name}</argument>
+            <argument>VzwRanDimInventoryRadioDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioDevicesNorm_table_name}</argument>
+            <argument>VzwRanDimInventoryBbuDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryBbuDevicesNorm_table_name}</argument>
+            <argument>VzwRanDimInventoryRadioCellDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioCellDevicesNorm_table_name}</argument>
+            <argument>VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_table_name}</argument>
+            <argument>VzwRanDimInventoryEnodB_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryEnodB_table_name}</argument>
+            <argument>vendor=${pipeline_vendor_name}</argument>
+            <argument>technology=${pipeline_4g_lte_technology}</argument>
+            <argument>trans_dt=${wf:actionData('get_trans_dt')['trans_dt']}</argument>
+            <argument>src=${marketName}</argument>
+            <argument>run_date=${run_date}</argument>
+            <argument>log_level=${digital_twin_ran_inventory_log_file}</argument>
+            <argument>app_version=${digital_twin_ran_inventory_app_version}</argument>
+            <argument>output_dir=${digital_twin_ran_inventory_aidpe_tmp_dataset}/ran_dt/debug/nokia</argument>
+            <argument>lof_output_file_location=${dataset_lof_nokia_parser_output}/outputFile</argument>
+            <argument>marketName=${marketName}</argument>
+            <argument>onair_table_name=${digital_twin_ran_inventory_kafka_switchx_nokia_onair_table_name}</argument>
+            <argument>dataset_market_reference=${digital_twin_ran_inventory_kafka_switchx_nokia_market_dataset_dir}</argument>
+            <argument>dataset_switchx_nokia_reference=${dataset_switchx_nokia_reference}</argument>
+            <argument>core_dataset_daily=${digital_twin_ran_inventory_aidpe_core_dataset_daily}</argument>
+            <argument>reconciliation_days_BbuDevicesNorm=7</argument>
+            <argument>reconciliation_days_RadioDevicesNorm=7</argument>
+            <argument>reconciliation_days_RadioCellDevicesNorm=7</argument>
+            <argument>reconciliation_days_RadioBbuAntennaAssignmentNorm=7</argument>
+            <argument>reconciliation_days_EnodBNorm=7</argument>
+            <argument>bootstrap_enabled_BbuDevicesNorm=False</argument>
+            <argument>bootstrap_enabled_RadioDevicesNorm=False</argument>
+            <argument>bootstrap_enabled_RadioCellDevicesNorm=False</argument>
+            <argument>bootstrap_enabled_RadioBbuAntennaAssignmentNorm=False</argument>
+            <argument>bootstrap_enabled_EnodBNorm=False</argument>
+            <argument>market_exists=${wf:actionData('get_trans_dt')['market_exists']}</argument> #
+            <argument>file_path=${wf:actionData('get_trans_dt')['file_path']}</argument>#
+            <argument>dataset_antenna_reference=${dataset_antenna_reference}</argument>
+            <capture-output/>
+        </shell>
+        <ok to="add_partition_4G_LTE"/>
+        <error to="joining-spark"/>
+    </action>
+
+    <action name="spark-node-5GUWB" retry-max="3" retry-interval="1" >
+        <shell xmlns="uri:oozie:shell-action:1.0">
+            <resource-manager>${jobTracker}</resource-manager>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+            <exec>gcloud</exec>
+            <argument>dataproc</argument>
+            <argument>jobs</argument>
+            <argument>submit</argument>
+            <argument>pyspark</argument>
+            <argument>--cluster-labels=workloadtype-critical1=batch-dtwin-crit-1</argument>
+            <argument>--labels=vendor=nokia,technology=5g_uwb</argument>
+            <argument>${digital_twin_ran_inventory_jobRootDirectory}/python/nokia_5GUWB.py</argument>
+            <argument>--py-files=${digital_twin_ran_inventory_jobRootDirectory}/python/common_functions.py,${digital_twin_ran_inventory_jobRootDirectory}/python/support_functions.py</argument>
+            <argument>--properties=spark.driver.memory=32g,spark.submit.deployMode=cluster,spark.executor.cores=3,spark.executor.memory=32g,spark.shuffle.service.enabled=true,spark.dynamicAllocation.executorIdleTimeout=60,spark.dynamicAllocation.minExecutors=2,spark.dynamicAllocation.initialExecutors=2,spark.dynamicAllocation.maxExecutors=1000,spark.serializer=org.apache.spark.serializer.KryoSerializer,spark.sql.broadcastTimeout=3600,spark.sql.adaptive.enabled=false</argument>
+            <argument>--jars=${spark_external_jars}/${spark_avro_jar},${spark_external_jars}/${spark_xml_jar}</argument>
+            <argument>--region=${GCP_REGION}</argument>
+            <argument>--</argument>
+            <argument>base_app_name=${base_app_name}</argument>
+            <argument>env=${env}</argument>
+            <argument>core_dataset=${digital_twin_ran_inventory_aidpe_core_dataset}</argument>
+            <argument>quarantine=${digital_twin_ran_inventory_aidpe_quarantine}</argument>
+            <argument>VzwRanDimInventoryRadioDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioDevicesNorm_dataset_name}</argument>
+            <argument>VzwRanDimInventoryBbuDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryBbuDevicesNorm_dataset_name}</argument>
+            <argument>VzwRanDimInventoryRadioCellDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioCellDevicesNorm_dataset_name}</argument>
+            <argument>VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_dataset_name}</argument>
+            <argument>VzwRanDimInventoryEnodB_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryEnodB_dataset_name}</argument>
+            <argument>VzwRanDimInventoryRadioDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioDevicesNorm_table_name}</argument>
+            <argument>VzwRanDimInventoryBbuDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryBbuDevicesNorm_table_name}</argument>
+            <argument>VzwRanDimInventoryRadioCellDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioCellDevicesNorm_table_name}</argument>
+            <argument>VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_table_name}</argument>
+            <argument>VzwRanDimInventoryEnodB_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryEnodB_table_name}</argument>
+            <argument>vendor=${pipeline_vendor_name}</argument>
+            <argument>technology=${pipeline_5g_uwb_technology}</argument>
+            <argument>trans_dt=${wf:actionData('get_trans_dt')['trans_dt']}</argument>#
+            <argument>src=${marketName}</argument>
+            <argument>run_date=${run_date}</argument>
+            <argument>log_level=${digital_twin_ran_inventory_log_file}</argument>
+            <argument>app_version=${digital_twin_ran_inventory_app_version}</argument>
+            <argument>output_dir=${digital_twin_ran_inventory_aidpe_tmp_dataset}/ran_dt/debug/nokia</argument>
+            <argument>lof_output_file_location=${dataset_lof_nokia_parser_output}/outputFile</argument>
+            <argument>marketName=${marketName}</argument>
+            <argument>onair_table_name=${digital_twin_ran_inventory_kafka_switchx_nokia_onair_table_name}</argument>
+            <argument>dataset_market_reference=${digital_twin_ran_inventory_kafka_switchx_nokia_market_dataset_dir}</argument>
+            <argument>dataset_switchx_nokia_reference=${dataset_switchx_nokia_reference}</argument>
+            <argument>core_dataset_daily=${digital_twin_ran_inventory_aidpe_core_dataset_daily}</argument>
+            <argument>reconciliation_days_BbuDevicesNorm=7</argument>
+            <argument>reconciliation_days_RadioDevicesNorm=7</argument>
+            <argument>reconciliation_days_RadioCellDevicesNorm=7</argument>
+            <argument>reconciliation_days_RadioBbuAntennaAssignmentNorm=7</argument>
+            <argument>reconciliation_days_EnodBNorm=7</argument>
+            <argument>bootstrap_enabled_BbuDevicesNorm=False</argument>
+            <argument>bootstrap_enabled_RadioDevicesNorm=False</argument>
+            <argument>bootstrap_enabled_RadioCellDevicesNorm=False</argument>
+            <argument>bootstrap_enabled_RadioBbuAntennaAssignmentNorm=False</argument>
+            <argument>bootstrap_enabled_EnodBNorm=False</argument>
+            <argument>market_exists=${wf:actionData('get_trans_dt')['market_exists']}</argument>
+            <argument>file_path=${wf:actionData('get_trans_dt')['file_path']}</argument>
+            <capture-output/>
+        </shell>
+        <ok to="add_partition_5G_UWB"/>
+        <error to="joining-spark"/>
+    </action>
+
+    <action name="spark-node-5GNW" retry-max="3" retry-interval="1" >
+        <shell xmlns="uri:oozie:shell-action:1.0">
+            <resource-manager>${jobTracker}</resource-manager>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+            <exec>gcloud</exec>
+            <argument>dataproc</argument>
+            <argument>jobs</argument>
+            <argument>submit</argument>
+            <argument>pyspark</argument>
+            <argument>--cluster-labels=workloadtype-critical1=batch-dtwin-crit-1</argument>
+            <argument>--labels=vendor=nokia,technology=5g_nw</argument>
+            <argument>${digital_twin_ran_inventory_jobRootDirectory}/python/nokia_5GNW.py</argument>
+            <argument>--py-files=${digital_twin_ran_inventory_jobRootDirectory}/python/common_functions.py,${digital_twin_ran_inventory_jobRootDirectory}/python/support_functions.py</argument>
+            <argument>--properties=spark.driver.memory=32g,spark.submit.deployMode=cluster,spark.executor.cores=3,spark.executor.memory=32g,spark.shuffle.service.enabled=true,spark.dynamicAllocation.executorIdleTimeout=60,spark.dynamicAllocation.minExecutors=2,spark.dynamicAllocation.initialExecutors=2,spark.dynamicAllocation.maxExecutors=1000,spark.serializer=org.apache.spark.serializer.KryoSerializer,spark.sql.broadcastTimeout=3600,spark.sql.adaptive.enabled=false</argument>
+            <argument>--jars=${spark_external_jars}/${spark_avro_jar},${spark_external_jars}/${spark_xml_jar}</argument>
+            <argument>--region=${GCP_REGION}</argument>
+            <argument>--</argument>
+            <argument>base_app_name=${base_app_name}</argument>
+            <argument>env=${env}</argument>
+            <argument>core_dataset=${digital_twin_ran_inventory_aidpe_core_dataset}</argument>
+            <argument>quarantine=${digital_twin_ran_inventory_aidpe_quarantine}</argument>
+            <argument>VzwRanDimInventoryRadioDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioDevicesNorm_dataset_name}</argument>
+            <argument>VzwRanDimInventoryBbuDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryBbuDevicesNorm_dataset_name}</argument>
+            <argument>VzwRanDimInventoryRadioCellDevicesNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioCellDevicesNorm_dataset_name}</argument>
+            <argument>VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_dataset_name}</argument>
+            <argument>VzwRanDimInventoryEnodB_dataset=${digital_twin_ran_inventory_VzwRanDimInventoryEnodB_dataset_name}</argument>
+            <argument>VzwRanDimInventoryRadioDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioDevicesNorm_table_name}</argument>
+            <argument>VzwRanDimInventoryBbuDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryBbuDevicesNorm_table_name}</argument>
+            <argument>VzwRanDimInventoryRadioCellDevicesNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioCellDevicesNorm_table_name}</argument>
+            <argument>VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryRadioBbuAntennaAssignmentNorm_table_name}</argument>
+            <argument>VzwRanDimInventoryEnodB_table=${digital_twin_ran_inventory_hive_db}.${digital_twin_ran_inventory_VzwRanDimInventoryEnodB_table_name}</argument>
+            <argument>vendor=${pipeline_vendor_name}</argument>
+            <argument>technology=${pipeline_5g_nw_technology}</argument>
+            <argument>trans_dt=${wf:actionData('get_trans_dt')['trans_dt']}</argument>
+            <argument>src=${marketName}</argument>
+            <argument>run_date=${run_date}</argument>
+            <argument>log_level=${digital_twin_ran_inventory_log_file}</argument>
+            <argument>app_version=${digital_twin_ran_inventory_app_version}</argument>
+            <argument>output_dir=${digital_twin_ran_inventory_aidpe_tmp_dataset}/ran_dt/debug/nokia</argument>
+            <argument>lof_output_file_location=${dataset_lof_nokia_parser_output}/outputFile</argument>
+            <argument>marketName=${marketName}</argument>
+            <argument>onair_table_name=${digital_twin_ran_inventory_kafka_switchx_nokia_onair_table_name}</argument>
+            <argument>dataset_market_reference=${digital_twin_ran_inventory_kafka_switchx_nokia_market_dataset_dir}</argument>
+            <argument>dataset_switchx_nokia_reference=${dataset_switchx_nokia_reference}</argument>
+            <argument>core_dataset_daily=${digital_twin_ran_inventory_aidpe_core_dataset_daily}</argument>
+            <argument>reconciliation_days_BbuDevicesNorm=7</argument>
+            <argument>reconciliation_days_RadioDevicesNorm=7</argument>
+            <argument>reconciliation_days_RadioCellDevicesNorm=7</argument>
+            <argument>reconciliation_days_RadioBbuAntennaAssignmentNorm=7</argument>
+            <argument>reconciliation_days_EnodBNorm=7</argument>
+            <argument>bootstrap_enabled_BbuDevicesNorm=False</argument>
+            <argument>bootstrap_enabled_RadioDevicesNorm=False</argument>
+            <argument>bootstrap_enabled_RadioCellDevicesNorm=False</argument>
+            <argument>bootstrap_enabled_RadioBbuAntennaAssignmentNorm=False</argument>
+            <argument>bootstrap_enabled_EnodBNorm=False</argument>
+            <argument>market_exists=${wf:actionData('get_trans_dt')['market_exists']}</argument>
+            <argument>file_path=${wf:actionData('get_trans_dt')['file_path']}</argument>
+            <argument>dataset_antenna_reference=${dataset_antenna_reference}</argument>
+            <capture-output/>
+        </shell>
+        <ok to="add_partition_5G_NW"/>
+        <error to="joining-spark"/>
+    </action>
+
+    <!-- Add partitions to core_dataset tables -->
+    <action name="add_partition_4G_LTE" retry-max="3" retry-interval="1" >
+        <shell xmlns="uri:oozie:shell-action:1.0">
+            <resource-manager>${resourceManager}</resource-manager>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+            <exec>gcloud</exec>
+            <argument>dataproc</argument>
+            <argument>jobs</argument>
+            <argument>submit</argument>
+            <argument>hive</argument>
+            <argument>--cluster-labels=workloadtype-critical1=batch-dtwin-crit-1</argument>
+            <argument>--labels=vendor=nokia,technology=4g_lte</argument>
+            <argument>--region=${GCP_REGION}</argument>
+            <argument>--file=${digital_twin_ran_inventory_jobRootDirectory}/hive/add_partitions.hql</argument>
+            <argument>--params="HIVE_DB=${digital_twin_ran_inventory_hive_db},HIVE_DB_QUAR=${digital_twin_ran_inventory_hive_db_quar},TRANS_DT=${wf:actionData('get_trans_dt')['trans_dt']},VENDOR=${pipeline_vendor_name},MARKET=${marketName},TECHNOLOGY=${pipeline_4g_lte_technology},DATESTAMP=${run_date}"</argument>
+
+            <capture-output/>
+        </shell>
+        <ok to="joining-spark"/>
+        <error to="joining-spark"/>
+    </action>
+
+    <action name="add_partition_5G_NW" retry-max="3" retry-interval="1" >
+        <shell xmlns="uri:oozie:shell-action:1.0">
+            <resource-manager>${resourceManager}</resource-manager>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+            <exec>gcloud</exec>
+            <argument>dataproc</argument>
+            <argument>jobs</argument>
+            <argument>submit</argument>
+            <argument>hive</argument>
+            <argument>--cluster-labels=workloadtype-critical1=batch-dtwin-crit-1</argument>
+            <argument>--labels=vendor=nokia,technology=5g_nw</argument>
+            <argument>--region=${GCP_REGION}</argument>
+            <argument>--file=${digital_twin_ran_inventory_jobRootDirectory}/hive/add_partitions.hql</argument>
+            <argument>--params="HIVE_DB=${digital_twin_ran_inventory_hive_db},HIVE_DB_QUAR=${digital_twin_ran_inventory_hive_db_quar},TRANS_DT=${wf:actionData('get_trans_dt')['trans_dt']},VENDOR=${pipeline_vendor_name},MARKET=${marketName},TECHNOLOGY=${pipeline_5g_nw_technology},DATESTAMP=${run_date}"</argument>
+
+            <capture-output/>
+        </shell>
+        <ok to="joining-spark"/>
+        <error to="joining-spark"/>
+    </action>
+
+    <action name="add_partition_5G_UWB" retry-max="3" retry-interval="1" >
+        <shell xmlns="uri:oozie:shell-action:1.0">
+            <resource-manager>${resourceManager}</resource-manager>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+            <exec>gcloud</exec>
+            <argument>dataproc</argument>
+            <argument>jobs</argument>
+            <argument>submit</argument>
+            <argument>hive</argument>
+            <argument>--cluster-labels=workloadtype-critical1=batch-dtwin-crit-1</argument>
+            <argument>--labels=vendor=nokia,technology=5g_uwb</argument>
+            <argument>--region=${GCP_REGION}</argument>
+            <argument>--file=${digital_twin_ran_inventory_jobRootDirectory}/hive/add_partitions.hql</argument>
+            <argument>--params="HIVE_DB=${digital_twin_ran_inventory_hive_db},HIVE_DB_QUAR=${digital_twin_ran_inventory_hive_db_quar},TRANS_DT=${wf:actionData('get_trans_dt')['trans_dt']},VENDOR=${pipeline_vendor_name},MARKET=${marketName},TECHNOLOGY=${pipeline_5g_uwb_technology},DATESTAMP=${run_date}"</argument>
+
+            <capture-output/>
+        </shell>
+        <ok to="joining-spark"/>
+        <error to="joining-spark"/>
+    </action>
+
+    <join name="joining-spark" to="maybeFail"/>
+    <decision name="maybeFail">
+      <switch>
+         <case to="end">
+            ${wf:lastErrorNode() eq null}
+         </case>
+         <default to="fail"/>
+     </switch>
+    </decision>
+    <kill name="fail">
+        <message>Action failed, error message [${wf:errorMessage(wf:lastErrorNode())}]</message>
+    </kill>
+    <end name="end"/>
+</workflow-app>

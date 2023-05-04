@@ -1,0 +1,116 @@
+
+CREATE OR REPLACE PROCEDURE ${target_dataset_name}.ee_atoll_features_daily_preproc_sp(load_dt STRING,process_date STRING)
+BEGIN
+DECLARE v_cnt INT64 default 0;
+--Insert entry into audit table
+MERGE `${target_project_id}.${audit_tgt_dataset_name}.${audit_target_tblname}` tgt
+USING
+(
+select "ATOLL Feature Preproc Load" prc_name,cast(process_date as date) src_prc_dt
+) src
+ON (src.prc_name=tgt.PROCESS_NAME and src.src_prc_dt=tgt.PROCESS_DT)
+when not matched then
+INSERT
+(
+    PROCESS_MODULE,
+    SCHEDULER,
+    PROCESS_NAME,
+    SOURCE_NAME,
+    TARGET_NAME,
+    START_TIME,
+    END_TIME,
+    PROCESS_DT,
+    NUM_RECORDS_AFFECTED,
+    STATUS,
+    RETURN_MESSAGE
+)
+VALUES
+(
+"energy_outlier",
+"oozie",
+prc_name,
+"ATOLL",
+"${atoll_target_tblname}",
+current_datetime(),
+null,
+src_prc_dt,
+null,
+"Started",
+null
+);
+--Started Preproc table load
+INSERT INTO `${atoll_tgt_project_id}.${atoll_tgt_dataset_name}.${atoll_target_tblname}`
+(
+        peoplesoft_location_code,
+        num_cdma_radios,
+        num_radios_1dbLL_4g,
+        flag_3g,
+        num_row_processed,
+        trans_month,
+        trans_dt,
+        process_dt
+)
+SELECT
+  COALESCE(B.peoplesoft_location_code,C.peoplesoft_location_code) AS peoplesoft_location_code,
+  C.num_cdma_radios,
+  B.num_radios_1dbLL_4g,
+  CASE
+    WHEN C.peoplesoft_location_code IS NOT NULL THEN "yes"
+  ELSE
+  "no"
+END
+  AS `flag_3g`,
+  COUNT(1) OVER() AS num_row_processed,
+  DATE_TRUNC( CAST(load_dt AS date ),month) AS trans_month,
+  COALESCE(C.trans_dt,B.trans_dt) as trans_dt,
+  CAST(process_date AS date ) AS process_dt   --- load_dt argument
+ from
+      (
+select peoplesoft_location_code, count(distinct cell_record_id) as num_cdma_radios,
+         cast (trans_dt as date) as trans_dt
+          from `${atoll_src_project_id}.${atoll_src_dataset_name}.${atoll_source_cdma_tblname}`
+          where site_version='0000' AND cell_record_id > '0'
+          and (cast(trans_dt as date) between date_trunc(cast (load_dt as date),month) and last_day(cast (load_dt as date)))
+          group by peoplesoft_location_code,cast(trans_dt as date)) C
+full outer join
+      (
+select A.peoplesoft_location_code, A.num_radios_1dbLL as `num_radios_1dbLL_4g`,trans_dt
+            from (
+            select peoplesoft_location_code,
+                   cast(trans_dt as date) as trans_dt,
+               sum(case
+                when cast(transmission_losses_db as NUMERIC) >=1
+                then 1
+                else 0
+                end) as `num_radios_1dbLL`
+            from `${atoll_src_project_id}.${atoll_src_dataset_name}.${atoll_source_lte_tblname}`
+            where radio_access_technology = 'LTE' and site_version='0000'
+            and (cast(trans_dt as date) between date_trunc(cast (load_dt as date),month) and last_day(cast (load_dt as date)))
+            group by peoplesoft_location_code,cast(trans_dt as date)
+            ) A
+      ) B
+  on C.peoplesoft_location_code = B.peoplesoft_location_code and c.trans_dt=b.trans_dt
+;
+--update audit table with completed status
+UPDATE `${target_project_id}.${audit_tgt_dataset_name}.${audit_target_tblname}`
+SET
+END_TIME=current_datetime(),
+NUM_RECORDS_AFFECTED=@@ROW_COUNT,
+STATUS="Completed",
+RETURN_MESSAGE="Success"
+where
+PROCESS_NAME="ATOLL Feature Preproc Load" and PROCESS_DT=cast(process_date as date);
+SELECT "Process Completed Successfully";
+EXCEPTION WHEN ERROR THEN
+--update audit table with error status
+UPDATE `${target_project_id}.${audit_tgt_dataset_name}.${audit_target_tblname}`
+SET
+END_TIME=current_datetime(),
+STATUS="Error",
+RETURN_MESSAGE=concat(@@error.message,'------***----',@@error.statement_text)
+where
+PROCESS_NAME="ATOLL Feature Preproc Load" and PROCESS_DT=cast(process_date as date);
+SELECT @@error.message,@@error.stack_trace,@@error.statement_text,@@error.formatted_stack_trace;
+RAISE;
+END
+;

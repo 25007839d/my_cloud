@@ -1,0 +1,42 @@
+[
+    {
+        "id": 1,
+        "first_name": "Jada",
+        "last_name": "Deport",
+        "email": "jdeport0@123-reg.co.uk",
+        "gender": "Female",
+        "ip_address": "68.40.159.153"
+    },
+    {
+        "id": 2,
+        "first_name": "Vallie",
+        "last_name": "Skitt",
+        "email": "vskitt1@state.tx.us",
+        "gender": "Female",
+        "ip_address": "155.192.158.152"
+    },
+    {
+        "id": 3,
+        "first_name": "Boy",
+        "last_name": "Batter",
+        "email": "bbatter2@wp.com",
+        "gender": "Bigender",
+        "ip_address": "105.168.162.19"
+    },
+    {
+        "id": 4,
+        "first_name": "Sari",
+        "last_name": "Wilkison",
+        "email": "swilkison3@admin.ch",
+        "gender": "Female",
+        "ip_address": "227.193.140.31"
+    },
+    {
+        "id": 5,
+        "first_name": "Onofredo",
+        "last_name": "Hannam",
+        "email": "ohannam4@upenn.edu",
+        "gender": "Male",
+        "ip_address": "84.54.102.193"
+    }
+]

@@ -1,0 +1,48 @@
+<!-- START TIME AND OTHER PROPERTIES COME FROM THE BUNDLE XML -->
+<coordinator-app name="${digital_twin_ran_inventory_reference_cellsite_base_app_name}_co_{env}" frequency='${freq}'
+                 start='${startTimeCellsite}' end='${endTime}' timezone="UTC"
+                 xmlns="uri:oozie:coordinator:0.2">
+
+    gs://gudv-dev-dtwndo-0-usmr-warehouse/dtwin/vzw/internal/ran_hive_ddl_success/${YEAR}${MONTH}${DAY}/vzw.ran.dim.inventory.enodeb_site_map.norm.v0"
+"gs://gudv-dev-dtwndo-0-usmr-warehouse/dtwin/vzw/internal/ran_hive_ddl_success/${YEAR}${MONTH}${DAY}/vzw.ran.dim.inventory.cell_sites.norm.v0"
+
+    <datasets>
+        <include>${bundle_path}/datasets.xml</include>
+    </datasets>
+    <input-events>
+        <data-in name="dataset_dim_inventory_enodeb_site_map_norm_v0_hive_ddl_success_path" dataset="dim_inventory_enodeb_site_map_norm_v0_hive_ddl_success_path">
+            <instance>${coord:current(0)}</instance>
+        </data-in>
+        <data-in name="dataset_dim_inventory_cell_sites_norm_v0_hive_ddl_success_path" dataset="dim_inventory_cell_sites_norm_v0_hive_ddl_success_path">
+            <instance>${coord:current(0)}</instance>
+        </data-in>
+    </input-events>
+    <action>
+        <workflow>
+            <app-path>${digital_twin_ran_inventory_reference_cellsite_oozieRootDirectory}/cellsite_workflow.xml</app-path>
+            <configuration>
+                <property>
+                    <name>base_app_name</name>
+                    <value>${digital_twin_ran_inventory_reference_cellsite_base_app_name}</value>
+                </property>
+                <property>
+                    <name>run_date</name>
+                    <value>${coord:formatTime(coord:nominalTime(), 'yyyyMMdd')}</value>
+                </property>
+                <property>
+                    <name>nominal_time</name>
+                    <value>${coord:formatTime(coord:nominalTime(), 'yyyy-MM-dd')}</value>
+                </property>
+                <property>
+                    <name>dataset_dim_inventory_enodeb_site_map_norm_v0_hive_ddl_success_path</name>
+                    <value>${coord:dataIn('dataset_dim_inventory_enodeb_site_map_norm_v0_hive_ddl_success_path')}</value>
+                </property>
+                <property>
+                    <name>dataset_dim_inventory_cell_sites_norm_v0_hive_ddl_success_path</name>
+                    <value>${coord:dataIn('dataset_dim_inventory_cell_sites_norm_v0_hive_ddl_success_path')}</value>
+                </property>
+            </configuration>
+        </workflow>
+    </action>
+</coordinator-app>
+

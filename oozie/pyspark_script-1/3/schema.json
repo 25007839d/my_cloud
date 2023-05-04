@@ -1,0 +1,177 @@
+{
+    "namespace": "com.vzw.vznet",
+    "name": "VzwRanDimInventoryAntennaDevicesNorm",
+    "type": "record",
+    "doc": "Inventory of all antennas on the RAN Network",
+    "fields": [
+        {
+            "name": "host",
+            "type": "string",
+            "doc": "Identifies host from where data is received"
+        },
+        {
+            "name": "src",
+            "type": "string",
+            "doc": "Name of dataset"
+        },
+        {
+            "name": "timestamp",
+            "type": [
+                "null",
+                {
+                    "type": "long",
+                    "logicalType": "timestamp-millis"
+                }
+            ],
+            "doc": "Timestamp of data in epoch milliseconds"
+        },
+        {
+            "name": "_event_ingress_ts",
+            "type": [
+                "null",
+                {
+                    "type": "long",
+                    "logicalType": "timestamp-millis"
+                }
+            ],
+            "doc": "Timestamp of ingesting system at time of ingestion"
+        },
+        {
+            "name": "_event_origin",
+            "type": "string",
+            "doc": "Identifies the location/system data was received from. Pipelines that have multiple origins use pipe (|) delimited values"
+        },
+        {
+            "name": "_event_tags",
+            "type": {
+                "type": "array",
+                "items": "string"
+            },
+            "doc": "Array of string values as tags for data"
+        },
+        {
+            "name": "azimuth",
+            "type": [
+                "null",
+                "double"
+            ],
+            "default": null,
+            "doc": "Antenna azimuth in degrees",
+            "_example": "244.5"
+        },
+        {
+            "name": "band_enabled",
+            "type": [
+                "null",
+                "string"
+            ],
+            "default": null,
+            "doc": "Frequency band that antenna is enabled to operate at",
+            "_example": "B4_20MHz_2150"
+        },
+        {
+            "name": "carrier",
+            "type": "int",
+            "doc": "Numeric value used to distinguish between the different carrier frequencies the antenna is transmitting at",
+            "_example": "3"
+        },
+        {
+            "name": "carrier_type",
+            "type": [
+                "null",
+                "string"
+            ],
+            "default": null,
+            "doc": "Type of carrier based on the carrier band ",
+            "_example": "HB"
+        },
+        {
+            "name": "centerline",
+            "type": [
+                "null",
+                "double"
+            ],
+            "default": null,
+            "doc": "Antenna centerline in feet",
+            "_example": "38.5"
+        },
+        {
+            "name": "device_uid",
+            "type": "string",
+            "doc": "Composite key that  can be used to identify unique antenna on the network",
+            "_example": "2530004_1_1"
+        },
+        {
+            "name": "enodeb_id",
+            "type": "string",
+            "doc": "",
+            "_example": "114404"
+        },
+        {
+            "name": "frequency_enabled",
+            "type": [
+                "null",
+                "int"
+            ],
+            "default": null,
+            "doc": "Frequency that antenna is enabled to operate at",
+            "_example": "2130"
+        },
+        {
+            "name": "model",
+            "type": [
+                "null",
+                "string"
+            ],
+            "default": null,
+            "doc": "Antenna model",
+            "_example": "VZ-AEUB_AEWB"
+        },
+        {
+            "name": "rx_port_count",
+            "type": [
+                "null",
+                "int"
+            ],
+            "default": null,
+            "doc": "Count of RX ports per carrier",
+            "_example": "2"
+        },
+        {
+            "name": "sector",
+            "type": "int",
+            "doc": "",
+            "_example": "1"
+        },
+        {
+            "name": "tx_port_count",
+            "type": [
+                "null",
+                "int"
+            ],
+            "default": null,
+            "doc": "Count of TX ports per carrier",
+            "_example": "2"
+        },
+        {
+            "name": "type",
+            "type": [
+                "null",
+                "string"
+            ],
+            "default": null,
+            "doc": "Type of antenna",
+            "_example": "Switched Beam"
+        },
+        {
+            "name": "vendor",
+            "type": [
+                "null",
+                "string"
+            ],
+            "default": null,
+            "doc": "Antenna manufacturer",
+            "_example": "AMPHENOL"
+        }
+    ]
+}
