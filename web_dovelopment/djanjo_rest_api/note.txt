@@ -1,0 +1,89 @@
+install pip install django
+
+python -m django -version
+
+>>mkdir django_project
+>>cd django_project
+
+>>django-admin startproject < company_name>
+>>cd compnay_project
+>>django-admin startapi api_name
+
+>> python manage.py runserver
+
+# for make data table by model
+>>python manage.py makemigrations
+>> python manage.py migrate
+
+>> python manage.py createsuperuser
+
+==========vir env=======================
+>virtualenv --python=python3 .env_name
+>.env_name\scripts\activate.bat
+
+
+=================DRF-steps==================
+1> python,djanjo,DRF
+2> models - use for temprory data store
+3> serializers - use for json data to object or vice versa
+4> views - through this accept the request
+5> setup URL > maping of url and views , which function will excute
+6> test api byusing rowser and postman
+============================================
+#python -m venv venv
+Then activate that environment
+
+#d_env\Scripts\activate
+
+Then install Django in that environment
+
+#pip install django
+Then create django project named mysite
+
+#django-admin startproject companyapi
+
+install the mysql client for db
+#pip install c
+
+Requirment last in the project
+#pip freeze > requirements.txt
+
+in mysql command for database
+#create database db_django;
+
+
+=================================================
+write views- two way by function and class
+through function we can write crud operation
+get  - retrive
+put  -create
+post - update
+delete - delete
+------------------------------------
+mvt (model,view,template)structure follow by django
+model - to create table
+view- to create business logic by crud
+
+--------------
+forms in django for model field select
+
+-----------------------------
+csrf use as a middleware for responce for security purpose
+@csrf_exempt
+----------------------------
+SOAP- simple object assess protocol-- before in use--return in xml file--take time to parse the file data
+REST- representation state transfer--now in use -- return in json-less bandwidth
+------------------------------
+download rest frame work
+pip install djangorestframework
+
+pip install markdown
+
+pip install django-filter
+-----------------
+rest_framework add in setting app
+---------------
+
+class base view
+api view- more refine and browser check the api
+
